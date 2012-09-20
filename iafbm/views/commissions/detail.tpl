@@ -65,6 +65,12 @@ Ext.onReady(function() {
             ]
         }, {
             baseCls: 'title',
+            html: 'Institut'
+        }, {
+            xtype: 'textfield',
+            name: 'institut'
+        }, {
+            baseCls: 'title',
             html: 'Commentaire'
         }, {
             xtype: 'ia-textarea',
@@ -444,6 +450,13 @@ Ext.onReady(function() {
             }]
         }, {
             xtype: 'fieldcontainer',
+            fieldLabel: 'Réception du rapport',
+            items: [{
+                xtype: 'ia-datefield',
+                name: 'reception_rapport',
+            }]
+        }, {
+            xtype: 'fieldcontainer',
             fieldLabel: 'Validation par le Décanat',
             items: [{
                 xtype: 'ia-datefield',
@@ -502,6 +515,30 @@ Ext.onReady(function() {
             }]
         }, {
             xtype: 'fieldcontainer',
+            fieldLabel: 'Proposition de nomination',
+            items: [{
+                xtype: 'ia-datefield',
+                name: 'envoi_proposition_nomination',
+            }, {
+                xtype: 'button',
+                text: 'Formulaire',
+                iconCls: 'icon-details',
+                handler: function() {
+                    var me = this,
+                        popup = new Ext.ia.window.Popup({
+                        title: 'Détails',
+                        item: new iafbm.form.CommissionPropositionNomination({
+                            fetch: {
+                                model: iafbm.model.CommissionPropositionNomination,
+                                params: { commission_id: '<?php echo $d['id'] ?>' }
+                            },
+                            frame: false
+                        })
+                    });
+                }
+            }]
+        }, {
+            xtype: 'fieldcontainer',
             fieldLabel: 'Validation par le CDir',
             items: [{
                 xtype: 'ia-datefield',
@@ -519,44 +556,6 @@ Ext.onReady(function() {
                 width: 381,
                 growMin: 21,
                 grow: true
-            }]
-        }, {
-            baseCls: 'title',
-            html: 'Informations complémentaires'
-        }, {
-            xtype: 'fieldcontainer',
-            fieldLabel: 'Réception du rapport',
-            items: [{
-                xtype: 'ia-datefield',
-                name: 'reception_rapport',
-            }]
-        }, {
-            xtype: 'fieldcontainer',
-            fieldLabel: 'Proposition de nomination',
-            items: [{
-                xtype: 'ia-datefield',
-                name: 'envoi_proposition_nomination',
-            }, {
-                xtype: 'button',
-                text: 'Formulaire',
-                iconCls: 'icon-details',
-                handler: function() {
-                    var me = this,
-                        popup = new Ext.ia.window.Popup({
-                        title: 'Détails',
-                        item: new iafbm.form.PropositionNomination({
-                            frame: false,
-                            //record: me.getRecord(gridView, rowIndex, colIndex, item),
-                            //fetch: me.getFetch(gridView, rowIndex, colIndex, item),
-                            listeners: {
-                                // Closes popup on form save
-                                aftersave: function(form, record) {
-                                    popup.close();
-                                }
-                            }
-                        })
-                    });
-                }
             }]
         }, {
             baseCls: 'title',
@@ -601,7 +600,9 @@ Ext.onReady(function() {
                 valueField: 'id',
                 store: new iafbm.store.Candidat({
                     params: { commission_id: <?php echo $d['id'] ?> }
-                })
+                }),
+                // Reloads candidats on drowndown expand because it is subject to change
+                listeners: { expand: function() { this.store.load() } }
             }]
         }, {
             xtype: 'fieldcontainer',
