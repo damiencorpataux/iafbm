@@ -3,7 +3,7 @@ Ext.ns('iafbm.form');
 
 Ext.define('iafbm.form.Candidat', {
     extend: 'Ext.ia.form.Panel',
-    store: Ext.create('iafbm.store.Candidat'), //fixme, this should not be necessary
+    store: Ext.create('iafbm.store.Candidat'), // FIXME: this should not be necessary
     title: 'Candidat',
     frame: true,
     fieldDefaults: {
@@ -62,11 +62,32 @@ Ext.define('iafbm.form.Candidat', {
                 store: new iafbm.store.Genre({})
             }, {
                 xtype: 'ia-combo',
+                fieldLabel: 'Dénomination',
+                name: 'personne_denomination_id',
+                displayField: 'nom',
+                valueField: 'id',
+                store: Ext.create('iafbm.store.PersonneDenomination')
+            }, {
+                xtype: 'ia-combo',
+                fieldLabel: 'Canton d\'origine',
+                name: 'canton_id',
+                displayField: 'nom',
+                valueField: 'id',
+                store: Ext.create('iafbm.store.Canton'),
+            }, {
+                xtype: 'ia-combo',
                 fieldLabel: 'Pays d\'origine',
                 name: 'pays_id',
                 displayField: 'nom',
                 valueField: 'id',
                 store: new iafbm.store.Pays({})
+            }, {
+                xtype: 'ia-combo',
+                fieldLabel: 'Permis de séjour',
+                name: 'permis_id',
+                displayField: 'nom',
+                valueField: 'id',
+                store: Ext.create('iafbm.store.Permis'),
             }, {
                 xtype: 'ia-datefield',
                 fieldLabel: 'Date de naissance',
@@ -624,12 +645,9 @@ Ext.define('iafbm.form.Personne', {
                 dataIndex: 'taux_activite',
                 width: 75,
                 align: 'right',
-                xtype: 'numbercolumn',
-                format: '000',
-                xtype: 'templatecolumn',
-                tpl: '{taux_activite}<tpl if="taux_activite!=null">%</tpl>',
+                xtype: 'ia-percentcolumn',
                 editor: {
-                    xtype: 'numberfield',
+                    xtype: 'ia-percentfield',
                     maxValue: 100,
                     minValue: 0
                 }
@@ -738,30 +756,272 @@ Ext.define('iafbm.form.Personne', {
     }
 });
 
-Ext.define('iafbm.form.PropositionNomination', {
+Ext.define('iafbm.form.CommissionPropositionNomination', {
     extend: 'Ext.ia.form.Panel',
-    //store: Ext.create('iafbm.store.Candidat'), //fixme, this should not be necessary
-    title: 'Proposition de nomination',
-    frame: true,
+    store: Ext.create('iafbm.store.CommissionPropositionNomination'), // FIXME: this should not be necessary
+    //
     initComponent: function() {
+        var form = this;
+        // Form buttons
+        this.tbar = ['-', {
+            xtype: 'button',
+            text: 'Visualiser',
+            iconCls: 'icon-details',
+            handler: function() {
+                var id = form.record.get('commission_id'),
+                    url = [x.context.baseuri, '/print/proposition_nomination/', id, '?html'].join('');
+                window.open(url);
+            }
+        }, '-', {
+            xtype: 'button',
+            text: 'Imprimer',
+            iconCls: 'icon-print',
+            handler: function() {
+                var id = form.record.get('commission_id'),
+                    url = [x.context.baseuri, '/print/proposition_nomination/', id].join('');
+                window.open(url);
+            }
+        }];
+        // Form defaults
+        this.defaults = {
+            width: '100%',
+            defaults: {
+                width: 400,
+                labelWidth: 120
+            }
+        };
+        // Form items
         this.items = [{
-            xtype: 'fieldset',
-            title: 'Proposition de nomination',
-            items: []
+            xtype: 'fieldcontainer',
+            layout: 'hbox',
+            items: [{
+                xtype: 'ia-combo',
+                fieldLabel: 'Candidat',
+                name: 'candidat_id',
+                displayField: '_display', // TODO: Use template instead?
+                valueField: 'id',
+                store: new iafbm.store.Candidat({
+                    params: { commission_id: this.fetch.params.commission_id }
+                }),
+                editable: false,
+            }, {
+                xtype: 'button',
+                text: 'Formulaire candidat',
+                iconCls: 'icon-edit',
+                width: 150,
+                margin: '0 5',
+                handler: function() {
+                    var candidat_id = this.prev().getValue(),
+                        common = this.up('form').common,
+                        popup = new Ext.ia.window.Popup({
+                        title: 'Candidat',
+                        item: new iafbm.form.Candidat({
+                            frame: false,
+                            modal: true,
+                            fetch: {
+                                model: iafbm.model.Candidat,
+                                id: candidat_id
+                            }
+                        })
+                    });
+                },
+                listeners: {
+                    // Listens to candidat-combo to disable button when no candidat selected
+                    afterrender: function() {
+                        var button = this,
+                            combo = this.prev();
+                        combo.on({change: function(combo, value) {
+                            button.setDisabled(!value);
+                        }});
+                        // Fires 'change' envent to trigger button en/disabled state
+                        combo.fireEvent('change', combo, combo.getValue(), undefined);
+                    }
+                }
+            }]
         }, {
             xtype: 'fieldset',
-            title: 'Coordonnées',
-            items: []
+            title: 'Proposition de nomination',
+            items: [{
+                xtype: 'textfield',
+                fieldLabel: 'Objet',
+                name: 'objet'
+            }, {
+                xtype: 'ia-combo',
+                fieldLabel: 'Titre proposé',
+                name: 'activite_id',
+                displayField: 'activite_nom_abreviation',
+                valueField: 'id',
+                store: Ext.create('iafbm.store.Activite', {params: {
+                    xorder_by: 'section_code,activite_type_nom,activite_nom_abreviation'
+                }}),
+                editable: false,
+                // Custom rendering template for data display
+                displayTpl: '<tpl for=".">{section_code} / {activite_type_nom} / {activite_nom_abreviation}</tpl>',
+                listConfig: {
+                    getInnerTpl: function() {
+                        // Reuses displayTpl template
+                        return this.pickerField.displayTpl.html;
+                    }
+                }
+            }, {
+                // FIXME: set checkbox as checked when commission_proposition_nomination store loaded
+                //        contrat_debut is null (TODO)
+                xtype: 'fieldcontainer',
+                layout: 'hbox',
+                fieldLabel: 'Début du contrat',
+                items: [{
+                    xtype: 'ia-datefield',
+                    name: 'contrat_debut'
+                }, {
+                    xtype: 'displayfield',
+                    value: '&nbsp;'
+                }, {
+                    xtype: 'checkbox',
+                    boxLabel: 'Au plutot tôt',
+                    name: 'contrat_debut_au_plus_tot',
+                    handler: function() {
+                        var datefield = this.up().down('datefield');
+                        if (this.checked) {
+                            datefield.hide();
+                        } else {
+                            datefield.show();
+                        }
+                    }
+                }]
+            }, {
+                xtype: 'ia-datefield',
+                fieldLabel: 'Fin du contrat',
+                name: 'contrat_fin'
+            }, {
+                xtype: 'fieldcontainer',
+                layout: 'hbox',
+                fieldLabel: 'Charge horaire',
+                items: [{
+                    xtype: 'numberfield',
+                    name: 'charge_horaire',
+                    width: 80,
+                    margin: '0 2 0 0'
+                }, {
+                    xtype: 'ia-combo',
+                    editable: false,
+                    name: 'grandeur_id',
+                    width: 191,
+                    displayField: 'unite_symbole',
+                    valueField: 'id',
+                    store: Ext.create('iafbm.store.Grandeur', {
+                        params: { 'id[]': [1,2,3,4] }
+                    })
+                }]
+            }, {
+                xtype: 'numberfield',
+                fieldLabel: 'Indemnité (CHF)',
+                name: 'indemnite'
+            }, {
+                xtype: 'textfield',
+                fieldLabel: 'Titre du cours',
+                name: 'titre_cours'
+            }, {
+                // FIXME: Stefan va clarifier (cf. PV workshop)
+                // Data: commission_validation: Décanat or CF? ask.
+                xtype: 'ia-combo',
+                fieldLabel: 'Date préavis',
+                name: 'date_preavis_champs',
+                displayField: 'display',
+                valueField: 'value',
+                store: Ext.create('Ext.data.ArrayStore', {
+                    autoDestroy: true,
+                    fields: ['display', 'value'],
+                    data: [],
+                    store: Ext.create('iafbm.store.CommissionValidation', {
+                        params: { commission_id: this.fetch.params.commission_id },
+                    }),
+                    listeners: { load: function() {
+                        var store = this;
+                        this.store.load(function(records) {
+                            var record = records[0],
+                                addDate = function(label, field) {
+                                    var date = record.get(field),
+                                        date = date ? Ext.Date.format(date, 'd.m.Y') : '-';
+                                    store.add({
+                                        display: [label, ': ', date].join(''),
+                                        value: field
+                                    });
+                            };
+
+                            store.removeAll();
+                            addDate('Préavis Décanat', 'decanat_date');
+                            addDate('Préavis CF', 'cf_date');
+                        });
+                    }}
+                })
+            }, {
+                xtype: 'ia-textarea',
+                fieldLabel: 'Observations',
+                name: 'observations',
+                grow: true
+
+            }, {
+                xtype: 'ia-datefield',
+                fieldLabel: 'Date',
+                name: 'date_proposition'
+            }]
         }, {
             xtype: 'fieldset',
             title: 'Annexes',
-            items: []
+            // Shows/hides box label on select/unselect
+            defaults: {
+                listeners: {
+                    afterrender: function() { this.handler() },
+                    change: function() { this.handler() }
+                },
+                handler: function() {
+                    var el = this.boxLabelEl;
+                    this.checked ? el.show() : el.hide();
+                }
+            },
+            items: [{
+                xtype: 'checkbox',
+                fieldLabel: 'Rapport de commission',
+                name: 'annexe_rapport_commission',
+                boxLabel: 'Reçu'
+            }, {
+                xtype: 'checkbox',
+                fieldLabel: 'Cahier des charges',
+                name: 'annexe_cahier_des_charges',
+                boxLabel: 'Reçu'
+            }, {
+                xtype: 'checkbox',
+                fieldLabel: 'CV et liste publications',
+                name: 'annexe_cv_publications',
+                boxLabel: 'Reçu'
+            }, {
+                xtype: 'checkbox',
+                fieldLabel: 'Déclaration de santé',
+                name: 'annexe_declaration_sante',
+                boxLabel: 'Reçu'
+            }]
         }, {
             xtype: 'fieldset',
             title: 'Imputation',
-            items: []
+            items: [{
+                xtype: 'textfield',
+                fieldLabel: 'Fonds',
+                name: 'imputation_fonds',
+            }, {
+                xtype: 'textfield',
+                fieldLabel: 'Centre financier',
+                name: 'imputation_centre_financier',
+            }, {
+                xtype: 'textfield',
+                fieldLabel: 'Unité structurelle',
+                name: 'imputation_unite_structurelle',
+            }, {
+                xtype: 'textfield',
+                fieldLabel: 'Numéro de projet',
+                name: 'imputation_numero_projet',
+            }]
         }]
-        var me = this;
-        me.callParent();
+        //
+        this.callParent();
     }
 });
