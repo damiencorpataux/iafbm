@@ -6,7 +6,13 @@ class iafbmGeocodeAdresses extends iafbmScript {
 
     function run() {
         // Ensures 'adresse' geo-fields exist
-        if (!$this->fields_exist()) $this->create_fields();
+        $this->log("Checking 'adresses' geo-fields");
+        if (!$this->fields_exist()) {
+            $this->log("Fields do not exist, creating...", 1);
+            $this->create_fields();
+        } else {
+            $this->log("Fields do exist", 1);
+        }
         // Geocodes adresses
         $this->geocode_adresses();
     }
@@ -16,12 +22,14 @@ class iafbmGeocodeAdresses extends iafbmScript {
      * Geocodes all ungeocodes adresses (eg. geo_x || geo_y is null)
      */
     function geocode_adresses() {
+        $this->log('Geocoding');
+        $this->log('Retrieving adresses to geocode', 1);
         $items = xModel::load('adresse', array(
             'geo_x' => null,
             'geo_y' => null
         ))->get();
         $count = count($items);
-        print "Geocoding adresses ({$count} items)";
+        print "* Processing {$count} items";
         foreach ($items as $item) {
             // POSTS unmodified record to trigger geocoding (see AdresseModel::post())
             xModel::load('adresse', $item)->post();
